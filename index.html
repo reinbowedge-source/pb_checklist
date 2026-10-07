@@ -1,376 +1,475 @@
-```html
 <!DOCTYPE html>
 <html lang="uk" class="h-full">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Чек-листи Ресторану — Кухня & Зал</title>
+  <title>Чек-лист ресторану</title>
+  
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- Tailwind CSS CDN -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
-          colors: {
-            brand: {
-              50: '#fbf7ee',
-              100: '#f5ecd6',
-              500: '#d97706',
-              600: '#b45309',
-              900: '#78350f',
-            },
-            kitchen: {
-              light: '#f97316',
-              dark: '#ea580c'
-            },
-            hall: {
-              light: '#0284c7',
-              dark: '#0369a1'
-            }
-          },
           fontFamily: {
-            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
           }
         }
       }
-    }
+    };
   </script>
+
   <style>
-    /* Custom subtle animations & scrollbar */
-    body {
-      touch-action: manipulation;
+    /* Prevent accidental pull-to-refresh & pinch zoom */
+    html, body {
+      overscroll-behavior-y: contain;
       -webkit-tap-highlight-color: transparent;
-    }
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #475569;
-    }
-    .pulse-warning {
-      animation: soft-pulse 2s infinite;
-    }
-    @keyframes soft-pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
     }
   </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-full flex flex-col font-sans antialiased transition-colors duration-200">
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col font-sans antialiased transition-colors">
 
-  <!-- Top App Bar -->
-  <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 shadow-xs">
-    <div class="max-w-2xl mx-auto flex items-center justify-between">
-      <div class="flex items-center space-x-2.5">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-600 flex items-center justify-center text-white shadow-sm font-bold text-lg">
-          📋
-        </div>
-        <div>
-          <h1 class="text-base font-bold leading-tight tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
-            GastroCheck
-            <span id="tg-status-pill" class="text-[10px] font-semibold tracking-wide uppercase px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
-              Web
-            </span>
-          </h1>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Чек-лист контролю зміни</p>
-        </div>
+  <!-- Header -->
+  <header class="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 px-4 py-3.5">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div>
+        <h1 class="text-base font-bold text-slate-900 dark:text-white leading-tight">Контрольний чек-лист</h1>
+        <p id="current-datetime" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Оновлення часу...</p>
       </div>
 
-      <div class="flex items-center space-x-2">
-        <button id="history-modal-btn" aria-label="Історія звітів" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-        </button>
-        <button id="theme-toggle" aria-label="Змінити тему" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
-          <svg id="theme-icon-dark" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-          </svg>
-          <svg id="theme-icon-light" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-          </svg>
-        </button>
-      </div>
+      <button id="theme-toggle" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition" aria-label="Змінити тему">
+        <span id="theme-icon">🌙</span>
+      </button>
     </div>
   </header>
 
-  <!-- Main Container -->
-  <main class="flex-1 max-w-2xl w-full mx-auto px-4 py-4 space-y-4">
+  <!-- Main Content -->
+  <main class="flex-1 max-w-md w-full mx-auto px-4 py-4 space-y-4">
+    
+    <!-- Worker Info Card -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700/80 shadow-xs">
+      <label for="worker-name" class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+        Відповідальний за зміну
+      </label>
+      <input 
+        type="text" 
+        id="worker-name" 
+        placeholder="Вкажіть ваше ім'я або посаду..." 
+        class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-800 dark:focus:ring-slate-400 transition"
+      />
+    </div>
 
-    <!-- 1. Selection & Shift Info Card -->
-    <section class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
-      <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl">
-        <button id="dept-kitchen" class="dept-btn py-2.5 px-3 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1.5 shadow-sm bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400">
-          <span>👨‍🍳</span> Кухня
-        </button>
-        <button id="dept-hall" class="dept-btn py-2.5 px-3 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900">
-          <span>🍷</span> Зал
-        </button>
-      </div>
+    <!-- Zone Selector (Kitchen / Hall) -->
+    <div class="grid grid-cols-2 gap-1 p-1 bg-slate-200 dark:bg-slate-950 rounded-xl">
+      <button 
+        id="btn-zone-kitchen" 
+        class="py-2.5 px-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+      >
+        <span>🍳</span>
+        <span>Кухня</span>
+        <span id="kitchen-badge" class="text-[11px] px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-normal">0/3</span>
+      </button>
 
-      <!-- Shift Switcher -->
-      <div class="grid grid-cols-2 gap-2">
-        <button id="shift-open" class="shift-btn py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1 transition border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
-          <span>🌅</span> Відкриття зміни
-        </button>
-        <button id="shift-close" class="shift-btn py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1 transition border-slate-200 dark:border-slate-700 bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">
-          <span>🌙</span> Закриття зміни
-        </button>
-      </div>
+      <button 
+        id="btn-zone-hall" 
+        class="py-2.5 px-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+      >
+        <span>🍷</span>
+        <span>Зал</span>
+        <span id="hall-badge" class="text-[11px] px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-normal">0/3</span>
+      </button>
+    </div>
 
-      <!-- Employee input -->
-      <div>
-        <label for="emp-name" class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
-          Працівник / Відповідальний:
-        </label>
-        <div class="relative">
-          <input 
-            type="text" 
-            id="emp-name" 
-            placeholder="Введіть ваше ім'я або посаду (напр. Су-шеф Артем)" 
-            class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition text-slate-900 dark:text-white"
-          />
-          <div class="absolute right-3 top-2.5 text-slate-400 text-xs">
-            <span id="date-badge"></span>
-          </div>
-        </div>
-      </div>
-    </section>
+    <!-- Active Tasks List -->
+    <div class="space-y-3" id="tasks-container">
+      <!-- Items generated dynamically -->
+    </div>
 
-    <!-- Progress Indicator Card -->
-    <section class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
-      <div class="flex items-center justify-between text-xs">
-        <div class="flex items-center gap-2">
-          <span class="font-bold text-slate-700 dark:text-slate-200">Прогрес чек-листа</span>
-          <span id="completion-text" class="text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-900">
-            0%
-          </span>
-        </div>
-        <div class="text-slate-500 dark:text-slate-400" id="counter-text">
-          0 / 0 пунктів
-        </div>
-      </div>
-      <!-- Progress Bar Track -->
-      <div class="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-        <div id="progress-fill" class="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-300 rounded-full" style="width: 0%"></div>
-      </div>
-    </section>
-
-    <!-- Checklist Items Section -->
-    <section class="space-y-3" id="checklist-container">
-      <!-- Items dynamically populated via JavaScript -->
-    </section>
-
-    <!-- General notes & maintenance card -->
-    <section class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-800 space-y-2">
-      <label for="general-comment" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-        <span>📝 Загальні зауваження / Поломки / Передача зміни</span>
-        <span class="text-[11px] font-normal text-slate-400">Опційно</span>
+    <!-- Additional General Note -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700/80 shadow-xs space-y-1.5">
+      <label for="general-comment" class="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+        Загальний коментар або примітка (необов'язково)
       </label>
       <textarea 
         id="general-comment" 
         rows="2" 
-        placeholder="Наприклад: протікає кран на мийці, замовлено виклик майстра; закінчується кава в зернах..." 
-        class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 text-slate-900 dark:text-white"
+        placeholder="Зауваження по зміні, залишки тощо..." 
+        class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-800 dark:focus:ring-slate-400 transition"
       ></textarea>
-    </section>
+    </div>
 
-    <!-- Action Buttons -->
-    <div class="pt-2 pb-8 flex flex-col gap-2.5">
+    <!-- Action Controls -->
+    <div class="pt-2 space-y-2.5">
       <button 
-        id="btn-submit" 
-        class="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-2xl shadow-md shadow-amber-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm md:text-base cursor-pointer"
+        id="btn-send-report" 
+        class="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-bold rounded-xl text-sm transition active:scale-[0.99] flex items-center justify-center gap-2 shadow-xs cursor-pointer"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-        </svg>
-        <span>Зберегти та надіслати звіт</span>
+        <span>✓</span>
+        <span>Відправити звіт</span>
       </button>
 
       <div class="grid grid-cols-2 gap-2">
         <button 
           id="btn-copy" 
-          class="py-2.5 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium rounded-xl text-xs flex items-center justify-center gap-1.5 transition active:scale-[0.98]"
+          class="py-2.5 px-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
         >
-          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-          </svg>
-          Скопіювати звіт
+          <span>📋</span> Скопіювати текст
         </button>
+
         <button 
           id="btn-reset" 
-          class="py-2.5 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-red-50 hover:border-red-200 dark:hover:bg-red-950/20 text-slate-600 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 font-medium rounded-xl text-xs flex items-center justify-center gap-1.5 transition active:scale-[0.98]"
+          class="py-2.5 px-3 bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/20 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 font-medium rounded-lg text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Скинути поля
+          <span>✕</span> Очистити форму
         </button>
       </div>
     </div>
   </main>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2.5 rounded-full shadow-lg text-xs font-medium transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2 backdrop-blur-sm border border-slate-700">
-    <span id="toast-icon">ℹ️</span>
-    <span id="toast-message">Повідомлення</span>
-  </div>
-
-  <!-- History Modal -->
-  <div id="history-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white dark:bg-slate-900 max-w-md w-full rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[85vh] flex flex-col overflow-hidden">
-      <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-        <h3 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-          <span>📜</span> Історія останніх чек-листів
+  <!-- Report Preview / Sent Modal -->
+  <div id="report-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-4 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+        <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+          <span>📋</span> Сформований звіт
         </h3>
-        <button id="close-history-btn" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <button id="close-modal" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-base font-bold">✕</button>
       </div>
-      <div id="history-list" class="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1 text-xs">
-        <!-- Rendered by JS -->
-      </div>
-      <div class="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex justify-between items-center">
-        <button id="clear-history-btn" class="text-xs text-red-600 dark:text-red-400 hover:underline">
-          Очистити історію
+
+      <pre id="modal-report-text" class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl text-xs text-slate-700 dark:text-slate-300 font-mono whitespace-pre-wrap max-h-60 overflow-y-auto border border-slate-200/60 dark:border-slate-800"></pre>
+
+      <div class="flex gap-2 pt-1">
+        <button id="modal-btn-copy" class="flex-1 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold rounded-lg text-xs transition">
+          Скопіювати
         </button>
-        <button id="btn-close-modal" class="px-4 py-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200">
+        <button id="modal-btn-close" class="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-lg text-xs transition">
           Закрити
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Confirmation / Success Modal -->
-  <div id="success-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white dark:bg-slate-900 max-w-sm w-full rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-800 text-center space-y-4">
-      <div class="w-14 h-14 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mx-auto text-2xl">
-        ✓
-      </div>
-      <div>
-        <h4 class="text-lg font-bold text-slate-900 dark:text-white">Чек-лист надіслано!</h4>
-        <p id="success-modal-desc" class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Дані успішно сформовані та готові для звіту адміністраторам.
-        </p>
-      </div>
-      <div class="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl text-left text-xs space-y-1 border border-slate-100 dark:border-slate-700/60" id="success-summary">
-        <!-- populated dynamically -->
-      </div>
-      <div class="flex gap-2">
-        <button id="btn-copy-modal-text" class="flex-1 py-2.5 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-semibold transition">
-          📋 Копіювати текст
-        </button>
-        <button id="btn-close-success" class="flex-1 py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition">
-          Зрозуміло
-        </button>
-      </div>
-    </div>
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-lg text-xs font-semibold shadow-lg opacity-0 pointer-events-none transition-all duration-200 flex items-center gap-2">
+    <span id="toast-text">Сповіщення</span>
   </div>
 
   <script>
-    // Checklist Database Definition
-    const CHECKLISTS = {
-      kitchen: {
-        open: {
-          title: "Кухня • Відкриття зміни",
-          icon: "👨‍🍳",
-          items: [
-            { id: "k_o_1", text: "Температурний режим холодильних та морозильних камер", hint: "Норма: холодильники +2...+4°C, морозилки -18°C" },
-            { id: "k_o_2", text: "Маркування заготовок та перевірка термінів придатності", hint: "Ротація FIFO, актуальні стікери" },
-            { id: "k_o_3", text: "Увімкнення та прогрів теплового обладнання/печей", hint: "Пароконвектомати, фритюр, витяжка, плити" },
-            { id: "k_o_4", text: "Санітарний стан робочих поверхонь, дошок і ножів", hint: "Колірне кодування дощок, дезінфекція поверхонь" },
-            { id: "k_o_5", text: "Наявність засобів гігієни, рушників та дезінфекторів", hint: "Мило, одноразові серветки на рукомийнику" }
-          ]
-        },
-        close: {
-          title: "Кухня • Закриття зміни",
-          icon: "👨‍🍳",
-          items: [
-            { id: "k_c_1", text: "Списання залишків, вакуумування та свіже маркування", hint: "Утилізація прострочки, закриття заготовок у гастроємності" },
-            { id: "k_c_2", text: "Повне вимкнення обладнання (індукція, печі, фритюр, гриль)", hint: "Перевірка перекриття газу та вентиляції" },
-            { id: "k_c_3", text: "Генеральне миття та дезінфекція робочих станцій та підлоги", hint: "Злив жировловлювачів, чистота раковин" },
-            { id: "k_c_4", text: "Виніс сміття, миття смітників та заміна пакетів", hint: "Чиста сміттєва зона, контейнери закриті" },
-            { id: "k_c_5", text: "Перевірка щільного закриття дверей холодильників та світла", hint: "Всі камери на замках/магнітах" }
-          ]
-        }
-      },
-      hall: {
-        open: {
-          title: "Зал • Відкриття зміни",
-          icon: "🍷",
-          items: [
-            { id: "h_o_1", text: "Чистота столів, підлоги, диванів та стільців", hint: "Відсутність крихт, пилу, плями прибрано" },
-            { id: "h_o_2", text: "Перевірка сервірування/станцій офіціантів", hint: "Серветки, спецівники, чисті зубочистки, плейсмати" },
-            { id: "h_o_3", text: "Стан бару та кавомашини, пролив груп", hint: "Чисті холдери, наявність молока, свіжі зерна в бункері" },
-            { id: "h_o_4", text: "Санітарний стан гостьового санвузла", hint: "Мило, паперові рушники, туалетний папір, свіжість" },
-            { id: "h_o_5", text: "Ввімкнення фонової музики, приємного світла і кондиціонерів", hint: "Комфортна температура 21-22°C" }
-          ]
-        },
-        close: {
-          title: "Зал • Закриття зміни",
-          icon: "🍷",
-          items: [
-            { id: "h_c_1", text: "Прибирання гостьового залу та станцій офіціантів", hint: "Зібрані брудні серветки, стільці підсунуто" },
-            { id: "h_c_2", text: "Здача каси, Z-звіт та закриття фіскальної зміни", hint: "Звірка безготівкових оплат і готівки в скриньці" },
-            { id: "h_c_3", text: "Повне миття посуду, барного інвентарю та виніс сміття", hint: "Чисті полиці, сухий посуд розставлено" },
-            { id: "h_c_4", text: "Вимкнення звукового обладнання, світла, вивіски та кондиціонерів", hint: "Всі термостати та аудіоплеєр вимкнено" },
-            { id: "h_c_5", text: "Перевірка замків вхідних дверей та постановка на сигналізацію", hint: "Вікна зачинені, охорона підтверджена" }
-          ]
-        }
+    // Checklist definitions
+    const TASKS = {
+      kitchen: [
+        { id: 'k_oven', title: 'Вимитий пароконвектомат' },
+        { id: 'k_surfaces', title: 'Чисті поверхні' },
+        { id: 'k_preps', title: 'Наявність заготовок' }
+      ],
+      hall: [
+        { id: 'h_windows', title: 'Чисті вікна' },
+        { id: 'h_keeper', title: 'Чиста зона кіперу' },
+        { id: 'h_cutlery', title: 'Чисті столові прибори' }
+      ]
+    };
+
+    // State
+    let currentZone = 'kitchen';
+    let formData = {
+      workerName: '',
+      generalComment: '',
+      // statuses: 'done' | 'issue' | 'pending'
+      // comments: string
+      items: {
+        k_oven: { status: 'pending', comment: '' },
+        k_surfaces: { status: 'pending', comment: '' },
+        k_preps: { status: 'pending', comment: '' },
+        h_windows: { status: 'pending', comment: '' },
+        h_keeper: { status: 'pending', comment: '' },
+        h_cutlery: { status: 'pending', comment: '' }
       }
     };
 
-    // App State
-    let currentDept = 'kitchen'; // 'kitchen' | 'hall'
-    let currentShift = 'open';   // 'open' | 'close'
-    let checklistAnswers = {};   // { [id]: { status: 'ok'|'issue'|null, note: '' } }
-
-    // Init Telegram WebApp
+    // Initialize Telegram WebApp if running inside TG
     const tg = window.Telegram?.WebApp;
-    const isTg = !!(tg && tg.initData);
-
-    if (isTg) {
+    if (tg) {
       try {
         tg.ready();
         tg.expand();
-        document.getElementById('tg-status-pill').textContent = 'TG App';
-        document.getElementById('tg-status-pill').className = "text-[10px] font-semibold tracking-wide uppercase px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-300 dark:border-blue-800";
-        // Pre-fill user name from Telegram if available
-        if (tg.initDataUnsafe?.user?.first_name) {
-          const u = tg.initDataUnsafe.user;
-          const userStr = `${u.first_name || ''} ${u.last_name || ''}`.trim();
-          document.getElementById('emp-name').value = userStr;
+        const tgUser = tg.initDataUnsafe?.user;
+        if (tgUser) {
+          const name = `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim();
+          formData.workerName = name + (tgUser.username ? ` (@${tgUser.username})` : '');
         }
       } catch (e) {
-        console.warn('TG SDK error', e);
+        console.warn('Telegram WebApp context error', e);
       }
     }
 
-    // Set today date
-    const today = new Date();
-    document.getElementById('date-badge').textContent = today.toLocaleDateString('uk-UA', {
-      day: 'numeric',
-      month: 'short'
+    // Update real-time clock
+    function updateClock() {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
+      const timeStr = now.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('current-datetime').textContent = `${dateStr}, ${timeStr}`;
+    }
+    updateClock();
+    setInterval(updateClock, 30000);
+
+    // Render Checklist Items
+    function renderTasks() {
+      const container = document.getElementById('tasks-container');
+      container.innerHTML = '';
+      const list = TASKS[currentZone];
+
+      list.forEach((task) => {
+        const state = formData.items[task.id] || { status: 'pending', comment: '' };
+        const card = document.createElement('div');
+        card.className = `p-3.5 rounded-xl border transition-colors ${
+          state.status === 'done' 
+            ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800' 
+            : state.status === 'issue'
+            ? 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800'
+            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700/80'
+        }`;
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-sm font-semibold text-slate-800 dark:text-slate-100 ${state.status === 'done' ? 'line-through text-slate-500 dark:text-slate-400' : ''}">
+              ${task.title}
+            </span>
+
+            <!-- Status Choice Buttons -->
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button 
+                type="button"
+                onclick="setStatus('${task.id}', 'done')"
+                class="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  state.status === 'done'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                }"
+              >
+                ✓ Виконано
+              </button>
+
+              <button 
+                type="button"
+                onclick="setStatus('${task.id}', 'issue')"
+                class="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  state.status === 'issue'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                }"
+              >
+                ⚠️ Зауваження
+              </button>
+            </div>
+          </div>
+
+          <!-- Note Field for Issues -->
+          <div class="mt-2.5 ${state.status === 'issue' ? 'block' : 'hidden'}">
+            <input 
+              type="text" 
+              placeholder="Опишіть зауваження або причину..." 
+              value="${state.comment ? escapeHtml(state.comment) : ''}" 
+              oninput="setComment('${task.id}', this.value)"
+              class="w-full bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700/60 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            />
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      updateBadges();
+    }
+
+    // Set Task Status
+    window.setStatus = function(id, newStatus) {
+      if (formData.items[id].status === newStatus) {
+        formData.items[id].status = 'pending';
+      } else {
+        formData.items[id].status = newStatus;
+      }
+      renderTasks();
+    };
+
+    // Set Task Comment
+    window.setComment = function(id, text) {
+      if (formData.items[id]) {
+        formData.items[id].comment = text;
+      }
+    };
+
+    // Update Counter Badges
+    function updateBadges() {
+      const kDone = TASKS.kitchen.filter(t => formData.items[t.id]?.status === 'done').length;
+      const hDone = TASKS.hall.filter(t => formData.items[t.id]?.status === 'done').length;
+
+      document.getElementById('kitchen-badge').textContent = `${kDone}/${TASKS.kitchen.length}`;
+      document.getElementById('hall-badge').textContent = `${hDone}/${TASKS.hall.length}`;
+    }
+
+    // Zone Navigation Handlers
+    const btnKitchen = document.getElementById('btn-zone-kitchen');
+    const btnHall = document.getElementById('btn-zone-hall');
+
+    btnKitchen.addEventListener('click', () => {
+      currentZone = 'kitchen';
+      btnKitchen.className = 'py-2.5 px-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs';
+      btnHall.className = 'py-2.5 px-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+      renderTasks();
     });
 
-    // Dark Mode Toggle
-    const themeToggle = document.getElementById('theme-toggle');
-    const lightIcon = document.getElementById('theme-icon-light');
-    const darkIcon = document.getElementById('theme-icon-dark');
+    btnHall.addEventListener('click', () => {
+      currentZone = 'hall';
+      btnHall.className = 'py-2.5 px-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs';
+      btnKitchen.className = 'py-2.5 px-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+      renderTasks();
+    });
 
+    // Helper: Escape HTML
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+    }
+
+    // Build Report String
+    function generateReportText() {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('uk-UA');
+      const timeStr = now.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+      const worker = document.getElementById('worker-name').value.trim() || 'Не вказано';
+      const comment = document.getElementById('general-comment').value.trim();
+
+      let text = `📋 ЗВІТ ЧЕК-ЛИСТА\n`;
+      text += `📅 Дата: ${dateStr} ${timeStr}\n`;
+      text += `👤 Відповідальний: ${worker}\n\n`;
+
+      // Kitchen
+      text += `🍳 КУХНЯ:\n`;
+      TASKS.kitchen.forEach(t => {
+        const item = formData.items[t.id];
+        if (item.status === 'done') {
+          text += `  ✅ ${t.title}\n`;
+        } else if (item.status === 'issue') {
+          text += `  ⚠️ ${t.title} [Зауваження: ${item.comment || 'без опису'}]\n`;
+        } else {
+          text += `  ⏳ ${t.title} [Не перевірено]\n`;
+        }
+      });
+
+      // Hall
+      text += `\n🍷 ЗАЛ:\n`;
+      TASKS.hall.forEach(t => {
+        const item = formData.items[t.id];
+        if (item.status === 'done') {
+          text += `  ✅ ${t.title}\n`;
+        } else if (item.status === 'issue') {
+          text += `  ⚠️ ${t.title} [Зауваження: ${item.comment || 'без опису'}]\n`;
+        } else {
+          text += `  ⏳ ${t.title} [Не перевірено]\n`;
+        }
+      });
+
+      if (comment) {
+        text += `\n📝 Примітка: ${comment}\n`;
+      }
+
+      return text;
+    }
+
+    // Show Toast
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-text').textContent = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      toast.classList.add('opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 2200);
+    }
+
+    // Copy Utility
+    function copyText(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast('Звіт скопійовано в буфер обміну');
+      } catch (err) {
+        showToast('Помилка копіювання');
+      }
+      document.body.removeChild(textarea);
+    }
+
+    // Send Button Logic
+    document.getElementById('btn-send-report').addEventListener('click', () => {
+      const report = generateReportText();
+
+      if (tg && typeof tg.sendData === 'function') {
+        try {
+          tg.sendData(JSON.stringify({
+            worker: document.getElementById('worker-name').value.trim(),
+            timestamp: new Date().toISOString(),
+            items: formData.items,
+            generalComment: document.getElementById('general-comment').value.trim(),
+            textReport: report
+          }));
+          showToast('Дані надіслано в бот');
+          return;
+        } catch (e) {
+          console.warn('sendData failed, fallback to modal', e);
+        }
+      }
+
+      // If outside Telegram WebApp or sendData unavailable, show modal preview
+      document.getElementById('modal-report-text').textContent = report;
+      document.getElementById('report-modal').classList.remove('hidden');
+    });
+
+    // Copy Button Logic
+    document.getElementById('btn-copy').addEventListener('click', () => {
+      copyText(generateReportText());
+    });
+
+    // Reset Form
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      Object.keys(formData.items).forEach(key => {
+        formData.items[key] = { status: 'pending', comment: '' };
+      });
+      document.getElementById('general-comment').value = '';
+      renderTasks();
+      showToast('Форму очищено');
+    });
+
+    // Modal controls
+    document.getElementById('close-modal').addEventListener('click', () => {
+      document.getElementById('report-modal').classList.add('hidden');
+    });
+    document.getElementById('modal-btn-close').addEventListener('click', () => {
+      document.getElementById('report-modal').classList.add('hidden');
+    });
+    document.getElementById('modal-btn-copy').addEventListener('click', () => {
+      copyText(document.getElementById('modal-report-text').textContent);
+      document.getElementById('report-modal').classList.add('hidden');
+    });
+
+    // Theme toggle
+    const themeBtn = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
     function applyTheme(isDark) {
       if (isDark) {
         document.documentElement.classList.add('dark');
-        lightIcon.classList.remove('hidden');
-        darkIcon.classList.add('hidden');
+        themeIcon.textContent = '☀️';
       } else {
-        document.documentElement.cla
+        document.documentElement.classList.remove('dark');
+        themeIcon.textContent = '🌙';
+      }
+    }
+    const prefersDark = window.matchMedia && window.matchMedia('(p
